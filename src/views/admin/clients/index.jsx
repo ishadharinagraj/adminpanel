@@ -132,7 +132,7 @@ export default function ClientsManagement() {
   // Fetch clients from backend
   const fetchClients = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/clients`);
+      const res = await fetch(`${API_BASE_URL}/clients`);
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data) && data.length > 0) {
@@ -215,7 +215,7 @@ export default function ClientsManagement() {
 
       // Try backend call
       try {
-        await fetch(`${API_BASE_URL}/api/clients/${editingClient.id}`, {
+        await fetch(`${API_BASE_URL}/clients/${editingClient.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -236,7 +236,7 @@ export default function ClientsManagement() {
 
       // Try backend call
       try {
-        await fetch(`${API_BASE_URL}/api/clients`, {
+        await fetch(`${API_BASE_URL}/clients`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -259,7 +259,7 @@ export default function ClientsManagement() {
   const handleDeleteClient = async (id, name) => {
     setClients(clients.filter((c) => c.id !== id));
     try {
-      await fetch(`${API_BASE_URL}/api/clients/${id}`, {
+      await fetch(`${API_BASE_URL}/clients/${id}`, {
         method: "DELETE",
       });
     } catch (err) {}

@@ -127,7 +127,7 @@ export default function DnsWhitelistManagement() {
   const fetchDnsWhitelist = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/admin/dns-whitelist`);
+      const response = await fetch(`${BACKEND_URL}/admin/dns-whitelist`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -176,7 +176,7 @@ export default function DnsWhitelistManagement() {
     };
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/admin/dns-whitelist`, {
+      const response = await fetch(`${BACKEND_URL}/admin/dns-whitelist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newRecordPayload),
@@ -235,7 +235,7 @@ export default function DnsWhitelistManagement() {
     if (!deletingRecord) return;
 
     try {
-      await fetch(`${BACKEND_URL}/api/admin/dns-whitelist/${deletingRecord.id}`, {
+      await fetch(`${BACKEND_URL}/admin/dns-whitelist/${deletingRecord.id}`, {
         method: "DELETE",
       });
 
