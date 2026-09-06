@@ -7,10 +7,14 @@ import {
   MdHome,
   MdLock,
   MdOutlineShoppingCart,
+  MdPeople,
+  MdDns,
 } from 'react-icons/md';
 
 // Admin Imports
 import MainDashboard from 'views/admin/default';
+import ClientsManagement from 'views/admin/clients';
+import DnsWhitelistManagement from 'views/admin/dnsWhitelist';
 import NFTMarketplace from 'views/admin/marketplace';
 import Profile from 'views/admin/profile';
 import DataTables from 'views/admin/dataTables';
@@ -18,6 +22,7 @@ import RTL from 'views/admin/rtl';
 
 // Auth Imports
 import SignInCentered from 'views/auth/signIn';
+import SignUpCentered from 'views/auth/signUp';
 
 const routes = [
   {
@@ -26,6 +31,20 @@ const routes = [
     path: '/default',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: <MainDashboard />,
+  },
+  {
+    name: 'WebTV Clients & DNS',
+    layout: '/admin',
+    path: '/clients',
+    icon: <Icon as={MdPeople} width="20px" height="20px" color="inherit" />,
+    component: <ClientsManagement />,
+  },
+  {
+    name: 'DNS Whitelist',
+    layout: '/admin',
+    path: '/dns-whitelist',
+    icon: <Icon as={MdDns} width="20px" height="20px" color="inherit" />,
+    component: <DnsWhitelistManagement />,
   },
   {
     name: 'NFT Marketplace',
@@ -62,6 +81,15 @@ const routes = [
     path: '/sign-in',
     icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
     component: <SignInCentered />,
+    hideInSidebar: true,
+  },
+  {
+    name: 'Sign Up',
+    layout: '/auth',
+    path: '/sign-up',
+    icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
+    component: <SignUpCentered />,
+    hideInSidebar: true,
   },
   {
     name: 'RTL Admin',
@@ -69,6 +97,7 @@ const routes = [
     path: '/rtl-default',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: <RTL />,
+    hideInSidebar: true,
   },
 ];
 

@@ -1,33 +1,9 @@
-/* eslint-disable */
-/*!
-  _   _  ___  ____  ___ ________  _   _   _   _ ___   
- | | | |/ _ \|  _ \|_ _|__  / _ \| \ | | | | | |_ _| 
- | |_| | | | | |_) || |  / / | | |  \| | | | | || | 
- |  _  | |_| |  _ < | | / /| |_| | |\  | | |_| || |
- |_| |_|\___/|_| \_\___/____\___/|_| \_|  \___/|___|
-                                                                                                                                                                                                                                                                                                                                       
-=========================================================
-* Horizon UI - v1.1.0
-=========================================================
-
-* Product Page: https://www.horizon-ui.com/
-* Copyright 2023 Horizon UI (https://www.horizon-ui.com/)
-
-* Designed and Coded by Simmmple
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
-
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 // Chakra imports
 import {
   Box,
   Button,
-  Checkbox,
   Flex,
   FormControl,
   FormLabel,
@@ -47,12 +23,15 @@ import loginAnimation from "assets/img/Login.json";
 import { MdOutlineRemoveRedEye } from "react-icons/md";
 import { RiEyeCloseLine } from "react-icons/ri";
 
-function SignIn() {
+function SignUp() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  // Form states
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -65,62 +44,70 @@ function SignIn() {
 
   const handleClick = () => setShow(!show);
 
-  const handleSignIn = async (e) => {
-    if (e) e.preventDefault();
+  const handleSignUp = async (e) => {
+    e.preventDefault();
 
-    if (!email || !password) {
+    if (!name || !email || !password) {
       toast({
-        title: "Missing Fields",
-        description: "Please enter both email and password.",
-        status: "warning",
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch("http://localhost:8080/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
         toast({
-          title: "Login Successful",
-          description: `Welcome back, ${data.user?.name || "User"}!`,
+          title: "Account Created!",
+          description: "Registration successful. Please sign in.",
           status: "success",
-          duration: 3000,
+          duration: 4000,
           isClosable: true,
         });
-
-        navigate("/admin/default");
+        navigate("/auth/sign-in");
       } else {
         toast({
-          title: "Authentication Failed",
-          description: data.message || "Invalid credentials.",
+          title: "Registration Failed",
+          description: data.message || "Could not register user.",
           status: "error",
-          duration: 3000,
+          duration: 4000,
           isClosable: true,
         });
       }
     } catch (err) {
-      console.warn("Backend server not reachable, simulating fallback login:", err);
+      console.warn("Backend server not reachable, simulating fallback registration:", err);
       toast({
-        title: "Signing in...",
-        description: "Navigating to dashboard (Frontend Demo mode).",
+        title: "Registration Submitted",
+        description: "Account created (Frontend Demo mode). Redirecting to Sign In...",
         status: "info",
-        duration: 2000,
+        duration: 3000,
         isClosable: true,
       });
-      navigate("/admin/default");
+      navigate("/auth/sign-in");
     } finally {
       setLoading(false);
     }
@@ -138,19 +125,19 @@ function SignIn() {
         justifyContent='center'
         mb={{ base: "30px", md: "60px" }}
         px={{ base: "25px", md: "0px" }}
-        mt={{ base: "40px", md: "14vh" }}
+        mt={{ base: "40px", md: "10vh" }}
         flexDirection='column'>
         <Box me='auto'>
           <Heading color={textColor} fontSize='36px' mb='10px'>
-            Sign In
+            Create an Account
           </Heading>
           <Text
-            mb='36px'
+            mb='28px'
             ms='4px'
             color={textColorSecondary}
             fontWeight='400'
             fontSize='md'>
-            Enter your email and password to sign in!
+            Enter your details to register as a new user!
           </Text>
         </Box>
         <Flex
@@ -163,8 +150,30 @@ function SignIn() {
           mx={{ base: "auto", lg: "unset" }}
           me='auto'
           mb={{ base: "20px", md: "auto" }}>
-          <form onSubmit={handleSignIn}>
+          <form onSubmit={handleSignUp}>
             <FormControl>
+              <FormLabel
+                display='flex'
+                ms='4px'
+                fontSize='sm'
+                fontWeight='500'
+                color={textColor}
+                mb='8px'>
+                Full Name<Text color={brandStars}>*</Text>
+              </FormLabel>
+              <Input
+                isRequired={true}
+                variant='auth'
+                fontSize='sm'
+                type='text'
+                placeholder='John Doe'
+                mb='20px'
+                fontWeight='500'
+                size='lg'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+
               <FormLabel
                 display='flex'
                 ms='4px'
@@ -178,15 +187,15 @@ function SignIn() {
                 isRequired={true}
                 variant='auth'
                 fontSize='sm'
-                ms={{ base: "0px", md: "0px" }}
                 type='email'
                 placeholder='mail@simmmple.com'
-                mb='24px'
+                mb='20px'
                 fontWeight='500'
                 size='lg'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+
               <FormLabel
                 ms='4px'
                 fontSize='sm'
@@ -195,12 +204,11 @@ function SignIn() {
                 display='flex'>
                 Password<Text color={brandStars}>*</Text>
               </FormLabel>
-              <InputGroup size='md'>
+              <InputGroup size='md' mb='20px'>
                 <Input
                   isRequired={true}
                   fontSize='sm'
                   placeholder='Min. 8 characters'
-                  mb='24px'
                   size='lg'
                   type={show ? "text" : "password"}
                   variant='auth'
@@ -216,32 +224,28 @@ function SignIn() {
                   />
                 </InputRightElement>
               </InputGroup>
-              <Flex justifyContent='space-between' align='center' mb='24px'>
-                <FormControl display='flex' alignItems='center'>
-                  <Checkbox
-                    id='remember-login'
-                    colorScheme='brandScheme'
-                    me='10px'
-                  />
-                  <FormLabel
-                    htmlFor='remember-login'
-                    mb='0'
-                    fontWeight='normal'
-                    color={textColor}
-                    fontSize='sm'>
-                    Keep me logged in
-                  </FormLabel>
-                </FormControl>
-                <NavLink to='/auth/forgot-password'>
-                  <Text
-                    color={textColorBrand}
-                    fontSize='sm'
-                    w='124px'
-                    fontWeight='500'>
-                    Forgot password?
-                  </Text>
-                </NavLink>
-              </Flex>
+
+              <FormLabel
+                ms='4px'
+                fontSize='sm'
+                fontWeight='500'
+                color={textColor}
+                display='flex'>
+                Confirm Password<Text color={brandStars}>*</Text>
+              </FormLabel>
+              <InputGroup size='md' mb='24px'>
+                <Input
+                  isRequired={true}
+                  fontSize='sm'
+                  placeholder='Confirm password'
+                  size='lg'
+                  type={show ? "text" : "password"}
+                  variant='auth'
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </InputGroup>
+
               <Button
                 fontSize='sm'
                 variant='brand'
@@ -251,10 +255,11 @@ function SignIn() {
                 mb='24px'
                 isLoading={loading}
                 type='submit'>
-                Sign In
+                Sign Up
               </Button>
             </FormControl>
           </form>
+
           <Flex
             flexDirection='column'
             justifyContent='center'
@@ -262,14 +267,14 @@ function SignIn() {
             maxW='100%'
             mt='0px'>
             <Text color={textColorDetails} fontWeight='400' fontSize='14px'>
-              Not registered yet?
-              <NavLink to='/auth/sign-up'>
+              Already have an account?
+              <NavLink to='/auth/sign-in'>
                 <Text
                   color={textColorBrand}
                   as='span'
                   ms='5px'
                   fontWeight='500'>
-                  Create an Account
+                  Log In
                 </Text>
               </NavLink>
             </Text>
@@ -280,4 +285,4 @@ function SignIn() {
   );
 }
 
-export default SignIn;
+export default SignUp;

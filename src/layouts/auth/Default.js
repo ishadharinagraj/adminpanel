@@ -1,17 +1,16 @@
 // Chakra imports
-import { Box, Flex, Icon, Text } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import PropTypes from "prop-types";
 import React from "react";
 import Footer from "components/footer/FooterAuth";
 import FixedPlugin from "components/fixedPlugin/FixedPlugin";
 // Custom components
 import { NavLink } from "react-router-dom";
-// Assets
-import { FaChevronLeft } from "react-icons/fa";
+import { Lottie } from "lottie-react";
 
 function AuthIllustration(props) {
-  const { children, illustrationBackground } = props;
-  // Chakra color mode
+  const { children, illustrationBackground, lottieAnimation } = props;
+
   return (
     <Flex position='relative' h='max-content'>
       <Flex
@@ -35,22 +34,6 @@ function AuthIllustration(props) {
             width: "fit-content",
             marginTop: "40px",
           })}>
-          <Flex
-            align='center'
-            ps={{ base: "25px", lg: "0px" }}
-            pt={{ lg: "0px", xl: "0px" }}
-            w='fit-content'>
-            <Icon
-              as={FaChevronLeft}
-              me='12px'
-              h='13px'
-              w='8px'
-              color='secondaryGray.600'
-            />
-            <Text ms='0px' fontSize='sm' color='secondaryGray.600'>
-              Back to Simmmple
-            </Text>
-          </Flex>
         </NavLink>
         {children}
         <Box
@@ -61,15 +44,23 @@ function AuthIllustration(props) {
           position='absolute'
           right='0px'>
           <Flex
-            bg={`url(${illustrationBackground})`}
+            bg={!lottieAnimation && illustrationBackground ? `url(${illustrationBackground})` : undefined}
+            bgGradient={lottieAnimation ? 'linear(to-b, brand.600, brand.400)' : undefined}
             justify='center'
-            align='end'
+            align='center'
             w='100%'
             h='100%'
             bgSize='cover'
             bgPosition='50%'
             position='absolute'
-            borderBottomLeftRadius={{ lg: "120px", xl: "200px" }}></Flex>
+            overflow='hidden'
+            borderBottomLeftRadius={{ lg: "120px", xl: "200px" }}>
+            {lottieAnimation ? (
+              <Box w='85%' maxW='550px' h='auto'>
+                <Lottie src={lottieAnimation} loop={true} autoplay={true} />
+              </Box>
+            ) : null}
+          </Flex>
         </Box>
         <Footer />
       </Flex>
@@ -77,10 +68,11 @@ function AuthIllustration(props) {
     </Flex>
   );
 }
-// PROPS
 
+// PROPS
 AuthIllustration.propTypes = {
   illustrationBackground: PropTypes.string,
+  lottieAnimation: PropTypes.object,
   image: PropTypes.any,
 };
 
