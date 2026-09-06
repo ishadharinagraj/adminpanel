@@ -54,8 +54,9 @@ import {
   MdBlock,
   MdSecurity,
 } from "react-icons/md";
+import { API_BASE_URL } from "config/apiConfig";
 
-const BACKEND_URL = process.env.REACT_APP_ADMIN_BACKEND_URL || "http://localhost:8080";
+const BACKEND_URL = API_BASE_URL;
 
 // Helper to normalize record objects
 const normalizeRecord = (item) => ({

@@ -40,6 +40,7 @@ import {
 
 // Custom components
 import Card from "components/card/Card";
+import { API_BASE_URL } from "config/apiConfig";
 
 // Icons
 import {
@@ -131,7 +132,7 @@ export default function ClientsManagement() {
   // Fetch clients from backend
   const fetchClients = async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/clients");
+      const res = await fetch(`${API_BASE_URL}/api/clients`);
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data) && data.length > 0) {
@@ -214,7 +215,7 @@ export default function ClientsManagement() {
 
       // Try backend call
       try {
-        await fetch(`http://localhost:8080/api/clients/${editingClient.id}`, {
+        await fetch(`${API_BASE_URL}/api/clients/${editingClient.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -235,7 +236,7 @@ export default function ClientsManagement() {
 
       // Try backend call
       try {
-        await fetch("http://localhost:8080/api/clients", {
+        await fetch(`${API_BASE_URL}/api/clients`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -258,7 +259,7 @@ export default function ClientsManagement() {
   const handleDeleteClient = async (id, name) => {
     setClients(clients.filter((c) => c.id !== id));
     try {
-      await fetch(`http://localhost:8080/api/clients/${id}`, {
+      await fetch(`${API_BASE_URL}/api/clients/${id}`, {
         method: "DELETE",
       });
     } catch (err) {}
