@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const { db, FieldValue, isFirebaseConfigured } = require('../config/firebase');
 const CryptoJS = require('crypto-js');
 
 const SECRET_KEY = process.env.DNS_VALIDATION_SECRET || 'thisisdnsvalidationkey';
@@ -58,45 +58,48 @@ function matchesDnsRule(target, ruleStr) {
   return false;
 }
 
-// Ensure whitelist_dns table exists in MySQL
+// Ensure initial whitelist_dns rules exist in Firestore
 const initDnsDb = async () => {
+  if (!isFirebaseConfigured || !db) return;
   try {
-    const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS whitelist_dns (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        dns VARCHAR(255) NOT NULL UNIQUE,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    await db.query(createTableQuery);
+    const snapshot = await db.collection('whitelist_dns').get();
+    if (snapshot.empty) {
+      console.log('Seeding initial DNS whitelist rules into Firestore...');
+      const defaultRules = [
+        { dns: '*', is_active: true, createdAt: FieldValue.serverTimestamp() },
+        { dns: 'xtream.example.com', is_active: true, createdAt: FieldValue.serverTimestamp() },
+        { dns: 'dns.org:8080', is_active: true, createdAt: FieldValue.serverTimestamp() },
+      ];
 
-    // If table is empty, insert default sample records
-    const [existing] = await db.query('SELECT COUNT(*) as count FROM whitelist_dns');
-    if (existing[0].count === 0) {
-      await db.query(`
-        INSERT INTO whitelist_dns (dns, is_active) VALUES
-        ('*', TRUE),
-        ('xtream.example.com', TRUE),
-        ('dns.org:8080', TRUE);
-      `);
+      for (const rule of defaultRules) {
+        await db.collection('whitelist_dns').add(rule);
+      }
+      console.log('DNS whitelist rules seeded successfully into Firestore.');
     }
   } catch (error) {
     console.error('DNS Whitelist database initialization error:', error.message);
   }
 };
 
-initDnsDb();
+initDnsDb().catch(err => console.error('DNS DB Init Error:', err.message));
 
 // GET /api/admin/dns-whitelist
 exports.getDnsWhitelist = async (req, res) => {
+  if (!isFirebaseConfigured || !db) {
+    return res.status(500).json({ message: 'Firebase is not configured in .env' });
+  }
   try {
-    const [records] = await db.query('SELECT id, dns, is_active, created_at FROM whitelist_dns ORDER BY id DESC');
-    const formattedRecords = records.map(r => ({
-      ...r,
-      is_active: Boolean(r.is_active)
-    }));
-    res.json(formattedRecords);
+    const snapshot = await db.collection('whitelist_dns').get();
+    const records = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        dns: data.dns,
+        is_active: Boolean(data.is_active),
+        created_at: data.createdAt ? data.createdAt.toDate?.() || data.createdAt : new Date(),
+      };
+    });
+    res.json(records);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching DNS whitelist', error: error.message });
   }
@@ -104,10 +107,12 @@ exports.getDnsWhitelist = async (req, res) => {
 
 // POST /api/admin/dns-whitelist
 exports.addDnsWhitelist = async (req, res) => {
+  if (!isFirebaseConfigured || !db) {
+    return res.status(500).json({ message: 'Firebase is not configured in .env' });
+  }
   try {
-    // Support both 'dns' and 'domain' keys in request body
     const dnsValue = req.body.dns || req.body.domain;
-    const isActive = req.body.is_active !== undefined ? req.body.is_active : true;
+    const isActive = req.body.is_active !== undefined ? Boolean(req.body.is_active) : true;
 
     if (!dnsValue || typeof dnsValue !== 'string' || !dnsValue.trim()) {
       return res.status(400).json({ message: 'DNS string is required' });
@@ -115,30 +120,37 @@ exports.addDnsWhitelist = async (req, res) => {
 
     const cleanDns = dnsValue.trim();
 
-    const [result] = await db.query(
-      'INSERT INTO whitelist_dns (dns, is_active) VALUES (?, ?)',
-      [cleanDns, isActive]
-    );
-
-    res.status(201).json({
-      id: result.insertId,
-      dns: cleanDns,
-      is_active: Boolean(isActive),
-      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-    });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
+    // Check if record already exists
+    const snapshot = await db.collection('whitelist_dns').where('dns', '==', cleanDns).get();
+    if (!snapshot.empty) {
       return res.status(400).json({ message: 'DNS record already exists' });
     }
+
+    const docRef = await db.collection('whitelist_dns').add({
+      dns: cleanDns,
+      is_active: isActive,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    res.status(201).json({
+      id: docRef.id,
+      dns: cleanDns,
+      is_active: isActive,
+      created_at: new Date().toISOString(),
+    });
+  } catch (error) {
     res.status(500).json({ message: 'Error adding DNS whitelist record', error: error.message });
   }
 };
 
 // DELETE /api/admin/dns-whitelist/:id
 exports.deleteDnsWhitelist = async (req, res) => {
+  if (!isFirebaseConfigured || !db) {
+    return res.status(500).json({ message: 'Firebase is not configured in .env' });
+  }
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM whitelist_dns WHERE id = ?', [id]);
+    await db.collection('whitelist_dns').doc(id).delete();
     res.json({ message: 'DNS whitelist record deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting DNS whitelist record', error: error.message });
@@ -147,10 +159,12 @@ exports.deleteDnsWhitelist = async (req, res) => {
 
 // Validation Helper: Query DB and check match
 async function isDnsWhitelistedInDb(dnsInput) {
-  const [rows] = await db.query('SELECT dns FROM whitelist_dns WHERE is_active = TRUE OR is_active = 1');
+  if (!isFirebaseConfigured || !db) return false;
+  const snapshot = await db.collection('whitelist_dns').where('is_active', '==', true).get();
   const parsedTarget = parseDnsInput(dnsInput);
-  for (const row of rows) {
-    if (matchesDnsRule(parsedTarget, row.dns)) {
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (matchesDnsRule(parsedTarget, data.dns)) {
       return true;
     }
   }
@@ -158,7 +172,6 @@ async function isDnsWhitelistedInDb(dnsInput) {
 }
 
 // 1. Simple Key-Secured Public API: POST /api/check-dns
-// Accepts JSON body { dns: "...", key: "thisisdnsvalidationkey" } or header x-api-key
 exports.checkDns = async (req, res) => {
   try {
     const { dns, key, apiKey, secretKey } = req.body || {};
@@ -196,12 +209,10 @@ exports.checkDns = async (req, res) => {
 };
 
 // 2. Encrypted Public Validation API: POST /api/validate-dns
-// Supports both AES Encrypted payload { payload: "..." } AND direct JSON with key
 exports.validateDns = async (req, res) => {
   try {
     const { payload, dns, key, apiKey, secretKey } = req.body || {};
 
-    // If client sends unencrypted JSON with security key or header
     const providedKey = key || apiKey || secretKey || req.headers['x-api-key'] || req.headers['x-secret-key'];
     if (dns && providedKey) {
       if (providedKey !== SECRET_KEY) {
@@ -215,7 +226,7 @@ exports.validateDns = async (req, res) => {
       });
     }
 
-    // Otherwise handle AES Encrypted payload
+    // Handle AES Encrypted payload
     if (!payload) {
       const encryptedError = CryptoJS.AES.encrypt(
         JSON.stringify({ isWhitelisted: false, message: 'Missing payload or security key' }),

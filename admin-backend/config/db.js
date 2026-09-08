@@ -1,14 +1,4 @@
-const mysql = require('mysql2');
-require('dotenv').config();
+// Legacy DB config wrapper - redirects to Firebase Firestore
+const { db, admin } = require('./firebase');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'horizon_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-module.exports = pool.promise();
+module.exports = db;

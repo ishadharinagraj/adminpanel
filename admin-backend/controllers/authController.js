@@ -1,30 +1,21 @@
-const db = require('../config/db');
+const { db, FieldValue, isFirebaseConfigured } = require('../config/firebase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Ensure users table exists
-const initDb = async () => {
-  try {
-    const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    await db.query(createTableQuery);
-    console.log('MySQL users table verified/created successfully.');
-  } catch (error) {
-    console.error('Database initialization error:', error.message);
-  }
+// Helper error response when Firebase credentials are missing
+const sendUnconfiguredError = (res) => {
+  return res.status(500).json({
+    message: 'Firebase database is not configured.',
+    error: 'Please set FIREBASE_SERVICE_ACCOUNT in your .env file or Render Dashboard.'
+  });
 };
-
-initDb();
 
 // Register new user
 exports.register = async (req, res) => {
+  if (!isFirebaseConfigured || !db) {
+    return sendUnconfiguredError(res);
+  }
+
   try {
     const { name, email, password } = req.body;
 
@@ -32,9 +23,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'Name, email, and password are required.' });
     }
 
-    // Check if email already exists
-    const [existing] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user with this email already exists in Firestore
+    const snapshot = await db.collection('users').where('email', '==', cleanEmail).get();
+    if (!snapshot.empty) {
       return res.status(400).json({ message: 'User with this email already exists.' });
     }
 
@@ -42,24 +35,30 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert user into MySQL database
-    const [result] = await db.query(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [name, email, hashedPassword]
-    );
+    // Insert user doc into Firestore
+    const docRef = await db.collection('users').add({
+      name: name.trim(),
+      email: cleanEmail,
+      password: hashedPassword,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
     return res.status(201).json({
       message: 'User registered successfully!',
-      userId: result.insertId,
+      userId: docRef.id,
     });
   } catch (error) {
     console.error('Registration error:', error);
-    return res.status(500).json({ message: 'Server error during registration.' });
+    return res.status(500).json({ message: 'Server error during registration.', error: error.message });
   }
 };
 
 // Login user
 exports.login = async (req, res) => {
+  if (!isFirebaseConfigured || !db) {
+    return sendUnconfiguredError(res);
+  }
+
   try {
     const { email, password } = req.body;
 
@@ -67,13 +66,16 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    // Check if user exists in database
-    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (users.length === 0) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Query Firestore for user with email
+    const snapshot = await db.collection('users').where('email', '==', cleanEmail).get();
+    if (snapshot.empty) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
-    const user = users[0];
+    const userDoc = snapshot.docs[0];
+    const user = userDoc.data();
 
     // Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
@@ -83,7 +85,7 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const secret = process.env.JWT_SECRET || 'horizon_secret';
-    const token = jwt.sign({ id: user.id, email: user.email }, secret, {
+    const token = jwt.sign({ id: userDoc.id, email: user.email }, secret, {
       expiresIn: '24h',
     });
 
@@ -91,13 +93,13 @@ exports.login = async (req, res) => {
       message: 'Login successful!',
       token,
       user: {
-        id: user.id,
+        id: userDoc.id,
         name: user.name,
         email: user.email,
       },
     });
   } catch (error) {
     console.error('Login error:', error);
-    return res.status(500).json({ message: 'Server error during login.' });
+    return res.status(500).json({ message: 'Server error during login.', error: error.message });
   }
 };
